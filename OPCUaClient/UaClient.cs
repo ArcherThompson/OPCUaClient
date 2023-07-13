@@ -1,9 +1,26 @@
-﻿using Opc.Ua;
+﻿/*
+ * 
+ The MIT License (MIT)
+
+Copyright (c) 2021 Joc-Luis
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * 
+ */
+
+
+
+using Opc.Ua;
 using Opc.Ua.Client;
 using OPCUaClient.Objects;
 using OPCUaClient.Exceptions;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds;
+using System.Text.RegularExpressions;
 
 namespace OPCUaClient
 {
@@ -59,7 +76,7 @@ namespace OPCUaClient
             {
                 if (this.ReconnectHandler.Session != null)
                 {
-                    this.Session = this.ReconnectHandler.Session;
+                    this.Session = (Session)this.ReconnectHandler.Session;
                 }
                 this.ReconnectHandler.Dispose();
                 this.ReconnectHandler = null;
@@ -132,7 +149,7 @@ namespace OPCUaClient
             Directory.CreateDirectory(Path.Combine(path, "TrustedPeer"));
             Directory.CreateDirectory(Path.Combine(path, "Rejected"));
             String hostName = System.Net.Dns.GetHostName();
-     
+
             if (user.Length > 0)
             {
                 UserIdentity = new UserIdentity(user, password);
@@ -141,10 +158,11 @@ namespace OPCUaClient
             {
                 UserIdentity = new UserIdentity();
             }
+            Console.WriteLine($"Application URI: {Utils.Format(@"urn:{0}" + appName, hostName)}");
             AppConfig = new ApplicationConfiguration
             {
                 ApplicationName = appName,
-                ApplicationUri = Utils.Format(@"urn:{0}"+appName, hostName),
+                ApplicationUri = Utils.Format(@"urn:{0}" + appName, hostName),
                 ApplicationType = ApplicationType.Client,
                 SecurityConfiguration = new SecurityConfiguration
                 {
@@ -204,7 +222,7 @@ namespace OPCUaClient
             EndpointDescription = CoreClientUtils.SelectEndpoint(AppConfig, serverUrl, security);
             EndpointConfig = EndpointConfiguration.Create(AppConfig);
             Endpoint = new ConfiguredEndpoint(null, EndpointDescription, EndpointConfig);
-        
+
         }
 
         /// <summary>
@@ -223,10 +241,10 @@ namespace OPCUaClient
             this.Disconnect();
 
             this.Session = Task.Run(async () => await Session.Create(AppConfig, Endpoint, false, false, AppConfig.ApplicationName, timeOut * 1000, UserIdentity, null)).GetAwaiter().GetResult();
-            
+
             if (keepAlive)
             {
-                this.Session.KeepAlive += this.KeepAlive;
+                this.Session.KeepAlive += (session, e) => KeepAlive((Session)session, e);
             }
 
             if (this.Session == null || !this.Session.Connected)
@@ -269,7 +287,7 @@ namespace OPCUaClient
         /// <exception cref="WriteException"></exception>
         public void Write(String address, Object value)
         {
-            
+
             WriteValueCollection writeValues = new WriteValueCollection();
             var writeValue = new WriteValue
             {
@@ -286,7 +304,7 @@ namespace OPCUaClient
             }
         }
 
-     
+
 
         /// <summary>
         /// Write a value on a tag
@@ -298,7 +316,7 @@ namespace OPCUaClient
             this.Write(tag.Address, tag.Value);
         }
 
-    
+
         /// <summary>
         /// Read a tag of the sepecific address
         /// </summary>
@@ -308,7 +326,7 @@ namespace OPCUaClient
         /// <returns>
         /// <see cref="Tag"/>
         /// </returns>
-        public Tag Read(String address)
+        public Tag Read(String address, ushort nameSpace = 2)
         {
             var tag = new Tag
             {
@@ -319,20 +337,20 @@ namespace OPCUaClient
             {
                 new ReadValueId
                 {
-                    NodeId = new NodeId(address, 2),
+                    NodeId = new NodeId(address, nameSpace),
                     AttributeId = Attributes.Value
                 }
             };
 
             this.Session.Read(null, 0, TimestampsToReturn.Both, readValues, out DataValueCollection dataValues, out DiagnosticInfoCollection diagnosticInfo);
-
-           
             tag.Value = dataValues[0].Value;
             tag.Code = dataValues[0].StatusCode;
+
             return tag;
+
         }
 
-   
+
 
         /// <summary>
         /// Write a lis of values
@@ -343,7 +361,7 @@ namespace OPCUaClient
         {
             WriteValueCollection writeValues = new WriteValueCollection();
 
-            
+
 
             writeValues.AddRange(tags.Select(tag => new WriteValue
             {
@@ -354,7 +372,7 @@ namespace OPCUaClient
                     Value = tag.Value
                 }
             }));
-            
+
             this.Session.Write(null, writeValues, out StatusCodeCollection statusCodes, out DiagnosticInfoCollection diagnosticInfo);
 
             if (statusCodes.Where(sc => !StatusCode.IsGood(sc)).Any())
@@ -364,7 +382,7 @@ namespace OPCUaClient
             }
         }
 
-    
+
 
         /// <summary>
         /// Read a list of tags on the OPCUA Server
@@ -379,14 +397,14 @@ namespace OPCUaClient
         {
             var tags = new List<Tag>();
             int i = 0;
-            
+
             ReadValueIdCollection readValues = new ReadValueIdCollection();
             readValues.AddRange(address.Select(a => new ReadValueId
             {
                 NodeId = new NodeId(a, 2),
                 AttributeId = Attributes.Value
             }));
-            
+
             this.Session.Read(null, 0, TimestampsToReturn.Both, readValues, out DataValueCollection dataValues, out DiagnosticInfoCollection diagnosticInfo);
 
             address.ForEach(a =>
@@ -438,7 +456,7 @@ namespace OPCUaClient
         /// <returns>
         /// List of <see cref="Device"/>
         /// </returns>
-        public List<Device> Devices(bool recursive = false)
+        public List<Device> Devices(bool recursive = false, ushort nameSpace = 2)
         {
             Browser browser = new Browser(this.Session);
             browser.BrowseDirection = BrowseDirection.Forward;
@@ -455,7 +473,7 @@ namespace OPCUaClient
             devices.ForEach(d =>
             {
                 d.Groups = this.Groups(d.Address, recursive);
-                d.Tags = this.Tags(d.Address);
+                d.Tags = this.Tags(d.Address, nameSpace);
             });
 
             return devices;
@@ -474,30 +492,31 @@ namespace OPCUaClient
         /// <returns>
         /// List of <see cref="Group"/>
         /// </returns>
-        public List<Group> Groups(String address, bool recursive = false)
+        public List<OPCUaClient.Objects.Group> Groups(String address, bool recursive = false, ushort nameSpace = 2)
         {
-            var groups = new List<Group>();
+            var groups = new List<OPCUaClient.Objects.Group>();
             Browser browser = new Browser(this.Session);
             browser.BrowseDirection = BrowseDirection.Forward;
             browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
             browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
 
-            ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, 2));
+            ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, nameSpace));
             foreach (var result in browseResults)
             {
                 if (result.NodeClass == NodeClass.Object)
                 {
-                    groups.Add(new Group
+                    groups.Add(new OPCUaClient.Objects.Group
                     {
                         Address = address + "." + result.ToString()
+
                     });
                 }
             }
 
             groups.ForEach(g =>
             {
-                g.Groups = this.Groups(g.Address, recursive);
-                g.Tags = this.Tags(g.Address);
+                g.Groups = this.Groups(g.Address, recursive, nameSpace);
+                g.Tags = this.Tags(g.Address, nameSpace);
             });
 
             return groups;
@@ -513,7 +532,7 @@ namespace OPCUaClient
         /// <returns>
         /// List of <see cref="Tag"/>
         /// </returns>
-        public List<Tag> Tags(String address)
+        public List<Tag> Tags(String address, ushort nameSpace)
         {
 
             var tags = new List<Tag>();
@@ -522,7 +541,7 @@ namespace OPCUaClient
             browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
             browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
 
-            ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, 2));
+            ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, nameSpace));
             foreach (var result in browseResults)
             {
                 if (result.NodeClass == NodeClass.Variable)
@@ -536,13 +555,13 @@ namespace OPCUaClient
 
             return tags;
         }
-        
-        
+
+
 
 
 
         #region Async methods
-        
+
         /// <summary>
         /// Scan root folder of OPC UA server and get all devices
         /// </summary>
@@ -552,7 +571,7 @@ namespace OPCUaClient
         /// <returns>
         /// List of <see cref="Device"/>
         /// </returns>
-        public Task<List<Device>> DevicesAsync(bool recursive = false)
+        public Task<List<Device>> DevicesAsync(bool recursive = false, ushort nameSpace = 2)
         {
             return Task.Run(() =>
             {
@@ -571,13 +590,46 @@ namespace OPCUaClient
                 devices.ForEach(d =>
                 {
                     d.Groups = this.Groups(d.Address, recursive);
-                    d.Tags = this.Tags(d.Address);
+                    d.Tags = this.Tags(d.Address, nameSpace);
+                });
+                return devices;
+            });
+        }
+        /// <summary>
+        /// Scans Logic folder of OPC UA server and get all devices
+        /// </summary>
+        /// <param name="recursive">
+        /// Indicates whether to search within device groups
+        /// </param>
+        /// <returns>
+        /// List of <see cref="Device"/>
+        /// </returns>
+        public Task<List<Device>> BrowseLogicAsync(bool recursive = false, ushort nameSpace = 2)
+        {
+            return Task.Run(() =>
+            {
+                Browser browser = new Browser(this.Session);
+                browser.BrowseDirection = BrowseDirection.Forward;
+                browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
+                browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
+
+                ReferenceDescriptionCollection browseResults = browser.Browse(Opc.Ua.ObjectIds.ObjectsFolder);
+
+                var devices = browseResults.Where(d => d.ToString() == "Logic").Select(b => new Device
+                {
+                    Address = b.ToString()
+                }).ToList();
+
+                devices.ForEach(d =>
+                {
+                    d.Groups = this.Groups(d.Address, recursive);
+                    d.Tags = this.Tags(d.Address, nameSpace);
                 });
                 return devices;
             });
         }
 
-        
+
         /// <summary>
         /// Scan an address and retrieve the tags and groups
         /// </summary>
@@ -590,22 +642,22 @@ namespace OPCUaClient
         /// <returns>
         /// List of <see cref="Group"/>
         /// </returns>
-        public Task<List<Group>> GroupsAsync(String address, bool recursive = false)
+        public Task<List<OPCUaClient.Objects.Group>> GroupsAsync(String address, bool recursive = false, ushort nameSpace = 2)
         {
             return Task.Run(() =>
             {
-                var groups = new List<Group>();
+                var groups = new List<OPCUaClient.Objects.Group>();
                 Browser browser = new Browser(this.Session);
                 browser.BrowseDirection = BrowseDirection.Forward;
                 browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
                 browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
 
-                ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, 2));
+                ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, nameSpace));
                 foreach (var result in browseResults)
                 {
                     if (result.NodeClass == NodeClass.Object)
                     {
-                        groups.Add(new Group
+                        groups.Add(new OPCUaClient.Objects.Group
                         {
                             Address = address + "." + result.ToString()
                         });
@@ -614,8 +666,8 @@ namespace OPCUaClient
 
                 groups.ForEach(g =>
                 {
-                    g.Groups = this.Groups(g.Address, recursive);
-                    g.Tags = this.Tags(g.Address);
+                    g.Groups = this.Groups(g.Address, recursive, nameSpace);
+                    g.Tags = this.Tags(g.Address, nameSpace);
                 });
 
                 return groups;
@@ -632,7 +684,7 @@ namespace OPCUaClient
         /// <returns>
         /// List of <see cref="Tag"/>
         /// </returns>
-        public Task<List<Tag>> TagsAsync(String address)
+        public Task<List<Tag>> TagsAsync(String address, ushort nameSpace = 2)
         {
             return Task.Run(() =>
             {
@@ -643,7 +695,7 @@ namespace OPCUaClient
                 browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
                 browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
 
-                ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, 2));
+                ReferenceDescriptionCollection browseResults = browser.Browse(new NodeId(address, nameSpace));
                 foreach (var result in browseResults)
                 {
                     if (result.NodeClass == NodeClass.Variable)
@@ -658,9 +710,9 @@ namespace OPCUaClient
                 return tags;
             });
         }
-        
-        
-        
+
+
+
         /// <summary>
         /// Write a value on a tag
         /// </summary>
@@ -695,7 +747,7 @@ namespace OPCUaClient
 
         }
 
-     
+
 
         /// <summary>
         /// Write a value on a tag
@@ -707,7 +759,7 @@ namespace OPCUaClient
 
             return tag;
         }
-        
+
         /// <summary>
         /// Write a lis of values
         /// </summary>
@@ -716,7 +768,7 @@ namespace OPCUaClient
         {
             WriteValueCollection writeValues = new WriteValueCollection();
 
-            
+
 
             writeValues.AddRange(tags.Select(tag => new WriteValue
             {
@@ -727,7 +779,7 @@ namespace OPCUaClient
                     Value = tag.Value
                 }
             }));
-            
+
             WriteResponse response = await this.Session.WriteAsync(null, writeValues, new CancellationToken());
 
             for (int i = 0; i < response.Results.Count; i++)
@@ -737,7 +789,7 @@ namespace OPCUaClient
 
             return tags;
         }
-        
+
 
 
         /// <summary>
@@ -749,7 +801,7 @@ namespace OPCUaClient
         /// <returns>
         /// <see cref="Tag"/>
         /// </returns>
-        public async Task<Tag> ReadAsync(String address)
+        public async Task<Tag> ReadAsync(String address, ushort nameSpace)
         {
             var tag = new Tag
             {
@@ -760,7 +812,7 @@ namespace OPCUaClient
             {
                 new ReadValueId
                 {
-                    NodeId = new NodeId(address, 2),
+                    NodeId = new NodeId(address, nameSpace),
                     AttributeId = Attributes.Value
                 }
             };
@@ -782,7 +834,7 @@ namespace OPCUaClient
         /// <returns>
         /// A list of tags <see cref="Tag"/>
         /// </returns>
-        public async Task<List<Tag>> ReadAsync(List<String> address)
+        public async Task<List<Tag>> ReadAsync(List<String> address, ushort nameSpace)
         {
             var tags = new List<Tag>();
             int i = 0;
@@ -790,7 +842,7 @@ namespace OPCUaClient
             ReadValueIdCollection readValues = new ReadValueIdCollection();
             readValues.AddRange(address.Select(a => new ReadValueId
             {
-                NodeId = new NodeId(a, 2),
+                NodeId = new NodeId(a, nameSpace),
                 AttributeId = Attributes.Value
             }));
 

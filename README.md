@@ -23,9 +23,9 @@ dotnet add package OPCUaClient
 ### Create a instance
 
 ```cs
- UaClient client = new UaClient("test", "opc.tcp://localhost:52240", true, true);
+ UaClient client = new UaClient("test", "opc.tcp://192.168.0.50:4840", true, true);
  
- UaClient auth = new UaClient("test", "opc.tcp://localhost:52240", true, true, "admin", "password");
+ UaClient auth = new UaClient("test", "opc.tcp://192.168.0.50:4840", true, true, "admin", "password");
 ```
 ### Create a session on the server
 

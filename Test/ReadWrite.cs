@@ -4,11 +4,29 @@ namespace Test
 {
     public class ReadWrite
     {
+        [Test]
+        public void ClientConnect()
+        {
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
+            try
+            {
+                client.Connect(30,true);
+            }
+            catch(Exception ex) { Console.WriteLine($"Error in test: {ex}"); }
+            
+
+            //client.Write("NexusMeter.Test.Boolean", true);
+            //var tag = client.Read("System.CpuLoad");
+            Assert.IsTrue(client.IsConnected);
+
+            client.Disconnect();
+
+        }
 
         [Test]
         public void Booolean()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
 
             client.Write("NexusMeter.Test.Boolean", true);
@@ -26,7 +44,7 @@ namespace Test
         [Test]
         public void Integer()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             int value = new Random().Next(int.MinValue, int.MaxValue);
             client.Write("NexusMeter.Test.Integer", value);
@@ -44,7 +62,7 @@ namespace Test
         [Test]
         public void Double()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             double value = new Random().NextDouble();
             client.Write("NexusMeter.Test.Double", value);
@@ -62,7 +80,7 @@ namespace Test
         [Test]
         public void Float()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             float value = new Random().NextSingle();
             client.Write("NexusMeter.Test.Float", value);
@@ -80,7 +98,7 @@ namespace Test
         [Test]
         public void String()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             String value = "";
 
@@ -108,7 +126,7 @@ namespace Test
         [Test]
         public void Multiple()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             var values = new List<Tag>
             {
                 new Tag
@@ -158,7 +176,7 @@ namespace Test
          [Test]
         public async Task BoooleanAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
 
             await client.WriteAsync("NexusMeter.Test.Boolean", true);
@@ -176,7 +194,7 @@ namespace Test
         [Test]
         public async Task IntegerAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             int value = new Random().Next(int.MinValue, int.MaxValue);
             await client.WriteAsync("NexusMeter.Test.Integer", value);
@@ -194,7 +212,7 @@ namespace Test
         [Test]
         public async Task DoubleAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             double value = new Random().NextDouble();
             await client.WriteAsync("NexusMeter.Test.Double", value);
@@ -212,7 +230,7 @@ namespace Test
         [Test]
         public async Task FloatAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             float value = new Random().NextSingle();
             await client.WriteAsync("NexusMeter.Test.Float", value);
@@ -230,7 +248,7 @@ namespace Test
         [Test]
         public async Task StringAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             String value = "";
 
@@ -258,7 +276,7 @@ namespace Test
         [Test]
         public async Task MultipleAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             var values = new List<Tag>
             {
                 new Tag
@@ -305,7 +323,7 @@ namespace Test
         [Test]
         public async Task MultipleFailAsync()
         {
-            UaClient client = new UaClient("testingRead", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingRead", "opc.tcp://192.168.0.50:4840", true, true);
             var values = new List<Tag>();
 
             for (int i = 0; i < 1000; i++)

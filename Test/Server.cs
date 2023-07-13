@@ -8,7 +8,7 @@ namespace Test
         public void Connection()
         {
 
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             client.Disconnect();
             Assert.Pass();
@@ -17,7 +17,7 @@ namespace Test
         [Test]
         public void FullScan()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             var devices = client.Devices(true);
             Assert.AreEqual(2, devices.Count);
@@ -29,7 +29,7 @@ namespace Test
         [Test]
         public void Devices()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             var devices = client.Devices();
 
@@ -40,7 +40,7 @@ namespace Test
         [Test]
         public void Groups()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             var groups = client.Groups("NexusMeter", false);
 
@@ -52,7 +52,7 @@ namespace Test
         [Test]
         public void Tags()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
 
             var tags = client.Tags("NexusMeter");
@@ -70,7 +70,7 @@ namespace Test
         [Test]
         public async Task DevicesAsync()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             var devices =  client.DevicesAsync();
 
@@ -81,7 +81,7 @@ namespace Test
         [Test]
         public async Task GroupsAsync()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
             var groups = await client.GroupsAsync("NexusMeter", false);
 
@@ -92,7 +92,7 @@ namespace Test
         [Test]
         public async Task TagsAsync()
         {
-            UaClient client = new UaClient("testingConect", "opc.tcp://localhost:52240", true, true);
+            UaClient client = new UaClient("testingConect", "opc.tcp://192.168.0.50:4840", true, true);
             client.Connect(30);
 
             var tags = await client.TagsAsync("NexusMeter");
